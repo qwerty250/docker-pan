@@ -17,6 +17,21 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && docker-php-ext-install -j$(nproc) mcrypt pdo_mysql exif zip gd opcache
 
+
+# install ssh server
+RUN apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+
+RUN echo 'root:root' |chpasswd
+
+RUN sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
+RUM /usr/sbin/sshd -D
+# install transmision
+RUN apt-get update -y
+RUN apt-get install transmission-gtk -y
+RUN apt-get install transmission-daemon -y
+
 # set recommended PHP.ini settings
 # see http://docs.filerun.com/php_configuration
 COPY filerun-optimization.ini /usr/local/etc/php/conf.d/
@@ -40,12 +55,17 @@ COPY db.sql /filerun.setup.sql
 COPY autoconfig.php /
 
 EXPOSE 80 6800
+EXPOSE 22
+EXPOSE 5900
+EXPOSE 51413
+EXPOSE 9091
 VOLUME ["/var/www/html", "/user-files"]
 
 COPY ./entrypoint.sh /
 COPY ./wait-for-it.sh /
 COPY ./import-db.sh /
 RUN chmod +x /entrypoint.sh /wait-for-it.sh /import-db.sh
+
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["apache2-foreground"]
